@@ -187,15 +187,7 @@ export async function GET(request: NextRequest) {
       data: {
         googleDriveAccessToken: tokenData.access_token,
         googleDriveRefreshToken: tokenData.refresh_token,
-        googleDriveTokenExpiry: expiryDate,
-        accounts: {
-          upsert: {
-            where: { userId: session.user.id },
-            create: { userId: session.user.id },
-            update: {}
-            
-          }
-        }
+        googleDriveTokenExpiry: expiryDate
       },
     });
     
