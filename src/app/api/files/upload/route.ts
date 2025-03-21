@@ -121,9 +121,8 @@ export async function POST(request: Request) {
   }
 }
 
-// Configure bodyParser to handle large files
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Configure route options for file uploads
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+// This is needed to handle large file uploads
+export const maxDuration = 60; // 60 seconds timeout
