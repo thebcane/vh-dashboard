@@ -2,10 +2,12 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { db } from "@/lib/db";
 import CredentialsProvider from "next-auth/providers/credentials";
-import type { NextAuthOptions } from "next-auth";
+import { JWT } from "next-auth/jwt";
+import { Session } from "next-auth";
+import { AuthOptions } from "next-auth";
 
 // Define the auth configuration
-const authOptions: NextAuthOptions = {
+export const authConfig: AuthOptions = {
   adapter: PrismaAdapter(db),
   providers: [
     CredentialsProvider({
@@ -39,14 +41,14 @@ const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: "/login",
   },
   callbacks: {
-    async session({ session, token }: { session: any; token: any }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (token.sub && session.user) {
         session.user.id = token.sub;
       }
@@ -55,7 +57,7 @@ const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user, account }: { token: any; user: any; account: any }) {
+    async jwt({ token, user, account }: { token: JWT; user: any; account: any }) {
       if (user) {
         token.role = user.role;
         token.sub = user.id;
@@ -71,7 +73,7 @@ const authOptions: NextAuthOptions = {
 };
 
 // Create the NextAuth handler
-const handler = NextAuth(authOptions);
+const handler = NextAuth(authConfig);
 
 // Export the handler functions
 export const { auth, signIn, signOut } = handler;
