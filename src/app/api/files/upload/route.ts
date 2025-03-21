@@ -103,10 +103,13 @@ export async function POST(request: Request) {
         url: finalFileUrl,
         googleDriveId: googleDriveId,
         uploaderId: session.user.id,
-        projectId: projectId,
-        // Add Supabase storage metadata
-        storagePath: useGoogleDrive ? null : storagePath,
-        storageBucket: useGoogleDrive ? null : STORAGE_BUCKET,
+        projectId: projectId || undefined,
+        
+        // Add Supabase storage metadata - TypeScript safe way
+        ...(useGoogleDrive ? {} : {
+          storagePath: storagePath,
+          storageBucket: STORAGE_BUCKET
+        }),
       },
       include: {
         project: {

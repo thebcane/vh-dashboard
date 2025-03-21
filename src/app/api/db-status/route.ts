@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+// Prevent static generation for API routes
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
-    // Try to query the database to check connection
+    // Skip DB connection check during build
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return NextResponse.json({
+        status: "build",
+        message: "DB status check skipped during build phase",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Normal runtime DB check
     const result = await db.$queryRaw`SELECT 1 as connected`;
     
     return NextResponse.json({

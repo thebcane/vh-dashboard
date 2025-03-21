@@ -6,9 +6,14 @@ import { JWT } from "next-auth/jwt";
 import { Session } from "next-auth";
 import { AuthOptions } from "next-auth";
 
+// Check if we're in a build environment
+const isVercelBuild = process.env.NEXT_PHASE === 'phase-production-build' ||
+                      process.env.NEXT_SKIP_INITIALIZING_DB === 'true';
+
 // Define the auth configuration
 export const authConfig: AuthOptions = {
-  adapter: PrismaAdapter(db),
+  // Only use the adapter in non-build environments
+  ...(isVercelBuild ? {} : { adapter: PrismaAdapter(db) }),
   providers: [
     CredentialsProvider({
       name: "Credentials",
