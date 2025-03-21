@@ -1,34 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { signIn } from "@/lib/auth";
 
-const ADMIN_EMAIL = "admin@visualharmonics.com";
-const ADMIN_PASSWORD = "password123";
+const USERS = [
+  {
+    email: "brendan@visualharmonics.com",
+    password: "123",
+    name: "Brendan Cane",
+  },
+  {
+    email: "cameron@visualharmonics.com",
+    password: "123",
+    name: "Cameron Mcgugan",
+  },
+];
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password } = body;
 
-    // Very simple admin authentication for demo purposes
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      // Set a cookie to keep user logged in
-      const cookieStore = cookies();
-      cookieStore.set("vh-auth", "admin-authenticated", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: "/",
-      });
+    const user = USERS.find(
+      (u) => u.email === email && u.password === password
+    );
 
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: "admin-id",
-          name: "Admin User",
-          email: ADMIN_EMAIL,
-          role: "admin",
-        }
-      });
+    if (user) {
+      try {
+        await signIn("credentials", {
+          email: email,
+          password: password,
+          redirect: false,
+        });
+
+        return NextResponse.json({
+          success: true,
+          user: {
+            id: user.email,
+            name: user.name,
+            email: user.email,
+            role: "admin", // Default role for all users
+          },
+        });
+      } catch (error: any) {
+        console.error("signIn error:", error);
+        return NextResponse.json({
+          success: false,
+          error: "Failed to sign in"
+        }, { status: 500 });
+      }
     }
 
     // Return error for invalid credentials
@@ -39,9 +57,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("Admin auth error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      error: "Authentication failed" 
+    return NextResponse.json({
+      success: false,
+      error: "Authentication failed"
     }, { status: 500 });
   }
 }
