@@ -410,7 +410,7 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-sm">25%</span>
                     </div>
-                    <Progress value={25} className="h-2 bg-blue-100 dark:bg-blue-800" style={{ "--progress-color": "var(--colors-blue-500)" }} />
+                    <Progress value={25} className="h-2 bg-blue-100 dark:bg-blue-800" style={{ "--progress-color": "var(--colors-blue-500)" } as React.CSSProperties} />
                   </div>
                   
                   <div className="space-y-2">
@@ -421,7 +421,7 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-sm">15%</span>
                     </div>
-                    <Progress value={15} className="h-2 bg-amber-100 dark:bg-amber-800" style={{ "--progress-color": "var(--colors-amber-500)" }} />
+                    <Progress value={15} className="h-2 bg-amber-100 dark:bg-amber-800" style={{ "--progress-color": "var(--colors-amber-500)" } as React.CSSProperties} />
                   </div>
                 </div>
               </CardContent>
