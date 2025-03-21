@@ -4,6 +4,7 @@ import * as React from "react";
 import { addDays, format, isSameDay, parseISO } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { DayPicker } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -30,14 +31,18 @@ export function MiniCalendar() {
   };
 
   // Custom calendar day rendering to show deadlines
-  const dayContent = (props: { day: Date; displayValue: string }) => {
-    const deadlines = getDeadlinesForDate(props.day);
+  const dayContent = (props: any) => {
+    // Extract the date from props - in react-day-picker v8, it's typically in props.date
+    const date = props.date;
+    if (!date) return props.children || <span>{props.displayValue || props.day?.getDate()}</span>;
+    
+    const deadlines = getDeadlinesForDate(date);
     const hasHighPriority = deadlines.some(d => d.priority === "high");
     const hasMediumPriority = deadlines.some(d => d.priority === "medium");
     
     return (
       <div className="relative">
-        <div>{props.displayValue}</div>
+        <div>{props.children || props.displayValue || date.getDate()}</div>
         {deadlines.length > 0 && (
           <div className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
             {hasHighPriority && (
