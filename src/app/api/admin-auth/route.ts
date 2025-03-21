@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         await signIn("credentials", {
           email: email,
           password: password,
-          redirect: false,
+          redirect: true,
         });
 
         return NextResponse.json({
