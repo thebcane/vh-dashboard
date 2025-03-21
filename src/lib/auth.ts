@@ -2,13 +2,10 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { db } from "@/lib/db";
 import CredentialsProvider from "next-auth/providers/credentials";
+import type { NextAuthOptions } from "next-auth";
 
-export const {
-  handlers: { GET, POST },
-  auth,
-  signIn,
-  signOut,
-} = NextAuth({
+// Define the auth configuration
+const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
   providers: [
     CredentialsProvider({
@@ -49,7 +46,7 @@ export const {
     signIn: "/login",
   },
   callbacks: {
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       if (token.sub && session.user) {
         session.user.id = token.sub;
       }
@@ -58,17 +55,27 @@ export const {
       }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account }: { token: any; user: any; account: any }) {
       if (user) {
         token.role = user.role;
         token.sub = user.id;
       }
       // Persist the OAuth access_token to the token right after signin
       if (account) {
-        token.accessToken = account.access_token
+        token.accessToken = account.access_token;
       }
-      return token
+      return token;
     },
   },
-  debug: true, // Enable debug mode for development
-});
+  debug: process.env.NODE_ENV === "development",
+};
+
+// Create the NextAuth handler
+const handler = NextAuth(authOptions);
+
+// Export the handler functions
+export const { auth, signIn, signOut } = handler;
+
+// Export GET and POST handlers for the API route
+export const GET = handler.GET;
+export const POST = handler.POST;
