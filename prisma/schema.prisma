@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Visual Harmonics Dashboard Models
+
+model User {
+  id                     String       @id @default(cuid())
+  name                   String
+  email                  String       @unique
+  passwordHash           String?
+  role                   String       @default("user") // user, admin
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  
+  // Google Drive Integration
+  googleDriveAccessToken  String?
+  googleDriveRefreshToken String?
+  googleDriveTokenExpiry  DateTime?
+  
+  // Relations
+  ownedProjects  Project[]   @relation("ProjectOwner")
+  assignedTasks  Task[]      @relation("TaskAssignee")
+  expenses       Expense[]
+  fileUploads    FileUpload[]
+  notes          Note[]
+  sentMessages   Message[]   @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageRecipient")
+  comments       Comment[]
+  projectMembers ProjectMember[]
+}
+
+model Project {
+  id            String       @id @default(cuid())
+  name          String
+  description   String
+  type          String       // soundtrack, soundEffect, ambience, foley, etc.
+  status        String       @default("active") // active, completed, archived
+  startDate     DateTime
+  endDate       DateTime?
+  ownerId       String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  owner         User         @relation("ProjectOwner", fields: [ownerId], references: [id])
+  tasks         Task[]
+  expenses      Expense[]
+  fileUploads   FileUpload[]
+  notes         Note[]
+  comments      Comment[]
+  members       ProjectMember[]
+}
+
+model ProjectMember {
+  id         String   @id @default(cuid())
+  userId     String
+  projectId  String
+  role       String   @default("member") // member, editor, viewer
+  createdAt  DateTime @default(now())
+  
+  // Relations
+  user       User     @relation(fields: [userId], references: [id])
+  project    Project  @relation(fields: [projectId], references: [id])
+  
+  @@unique([userId, projectId])
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  title         String
+  description   String
+  status        String       @default("todo") // todo, inProgress, done
+  priority      String       @default("medium") // low, medium, high
+  dueDate       DateTime?
+  projectId     String
+  assigneeId    String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  project       Project      @relation(fields: [projectId], references: [id])
+  assignee      User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  comments      Comment[]
+}
+
+model Expense {
+  id             String       @id @default(cuid())
+  title          String
+  description    String
+  amount         Float
+  date           DateTime
+  category       String       // equipment, software, travel, etc.
+  invoiceNumber  String?
+  paid           Boolean      @default(false)
+  userId         String
+  projectId      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  user           User         @relation(fields: [userId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id])
+}
+
+model FileUpload {
+  id             String       @id @default(cuid())
+  name           String
+  type           String       // file MIME type
+  size           Int          // file size in bytes
+  url            String
+  googleDriveId  String?
+  uploaderId     String
+  projectId      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  uploader       User         @relation(fields: [uploaderId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id])
+  comments       Comment[]
+}
+
+model Note {
+  id             String       @id @default(cuid())
+  title          String
+  content        String
+  isPublic       Boolean      @default(false)
+  authorId       String
+  projectId      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  author         User         @relation(fields: [authorId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id])
+  comments       Comment[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  read           Boolean      @default(false)
+  senderId       String
+  recipientId    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  recipient      User         @relation("MessageRecipient", fields: [recipientId], references: [id])
+}
+
+model Comment {
+  id             String       @id @default(cuid())
+  content        String
+  authorId       String
+  projectId      String?
+  taskId         String?
+  fileId         String?
+  noteId         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Relations
+  author         User         @relation(fields: [authorId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id])
+  task           Task?        @relation(fields: [taskId], references: [id])
+  file           FileUpload?  @relation(fields: [fileId], references: [id])
+  note           Note?        @relation(fields: [noteId], references: [id])
+}
+
+// Module system models
+model Module {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String
+  enabled     Boolean      @default(true)
+  icon        String       // Icon name from lucide-react
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
