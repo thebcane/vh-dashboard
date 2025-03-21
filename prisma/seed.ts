@@ -4,8 +4,18 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Clean up existing data
-  await prisma.comment.deleteMany();
-  await prisma.message.deleteMany();
+  try {
+    await prisma.comment.deleteMany();
+  } catch (error) {
+    console.log('Comment table not found, skipping cleanup');
+  }
+  
+  try {
+    await prisma.message.deleteMany();
+  } catch (error) {
+    console.log('Message table not found, skipping cleanup');
+  }
+  
   await prisma.note.deleteMany();
   await prisma.fileUpload.deleteMany();
   await prisma.expense.deleteMany();

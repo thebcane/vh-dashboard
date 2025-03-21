@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Clean up existing data in the correct order to avoid foreign key constraints
-    await db.comment.deleteMany({});
-    await db.message.deleteMany({});
+    try {
+      await db.comment.deleteMany({});
+    } catch (error) {
+      console.log('Comment table not found, skipping cleanup');
+    }
+    
+    try {
+      await db.message.deleteMany({});
+    } catch (error) {
+      console.log('Message table not found, skipping cleanup');
+    }
+    
     await db.note.deleteMany({});
     await db.fileUpload.deleteMany({});
     await db.expense.deleteMany({});
