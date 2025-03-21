@@ -9,11 +9,16 @@
     { "source": "/(.*)", "destination": "/" }
   ],
   "env": {
-    "NEXTAUTH_URL": {
-      "development": "http://localhost:3000",
-      "preview": "https://vh-dashboard-preview.vercel.app",
-      "production": "https://vh-dashboard.vercel.app"
-    }
+    "NEXTAUTH_URL": "https://vh-dashboard.vercel.app",
+    "NEXTAUTH_SECRET": "your-production-nextauth-secret-here",
+    "POSTGRES_URL": "postgres://postgres:wY4p8n5C3bkKhCOb@db.ftdbrzpnwelqsdbbguep.supabase.co:5432/postgres",
+    "POSTGRES_PRISMA_URL": "postgres://postgres:wY4p8n5C3bkKhCOb@db.ftdbrzpnwelqsdbbguep.supabase.co:5432/postgres?pgbouncer=true&connection_limit=10",
+    "POSTGRES_URL_NON_POOLING": "postgres://postgres:wY4p8n5C3bkKhCOb@db.ftdbrzpnwelqsdbbguep.supabase.co:5432/postgres",
+    "SUPABASE_URL": "https://ftdbrzpnwelqsdbbguep.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0ZGJyenBud2VscXNkYmJndWVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1Nzg0MzgsImV4cCI6MjA1ODE1NDQzOH0.Quocf3jEmBYvC-65a6RGAJmcnna1lG2vxlWrDhpEL4Y",
+    "SUPABASE_SERVICE_ROLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0ZGJyenBud2VscXNkYmJndWVwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MjU3ODQzOCwiZXhwIjoyMDU4MTU0NDM4fQ.WiDrUsWSzebsFDVgdy7BJt0Qxk2K-hONGpAGHLXV5Us",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://ftdbrzpnwelqsdbbguep.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0ZGJyenBud2VscXNkYmJndWVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1Nzg0MzgsImV4cCI6MjA1ODE1NDQzOH0.Quocf3jEmBYvC-65a6RGAJmcnna1lG2vxlWrDhpEL4Y"
   },
   "crons": [
     {
