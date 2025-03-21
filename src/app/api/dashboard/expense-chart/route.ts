@@ -1,20 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Get the current user session
+    // Check for authentication using both methods
     const session = await auth();
+    const authCookie = request.cookies.get('vh-auth')?.value;
+    const isAuthenticated = authCookie === 'admin-authenticated';
     
-    if (!session?.user) {
+    // Allow access if either authentication method is valid
+    if (!session?.user && !isAuthenticated) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
+    
+    // Use session.user.id if available, otherwise use a default admin ID
+    const userId = session?.user?.id || 'admin-id';
 
     // Get expense data for the last 6 months
     const now = new Date();
@@ -27,17 +33,17 @@ export async function GET() {
       where: {
         OR: [
           {
-            userId: session.user.id, 
+            userId: userId,
             date: { gte: sixMonthsAgo }
           },
           {
             project: {
               OR: [
-                { ownerId: session.user.id },
+                { ownerId: userId },
                 {
                   members: {
                     some: {
-                      userId: session.user.id,
+                      userId: userId,
                     },
                   },
                 },
