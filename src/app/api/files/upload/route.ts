@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { writeFile } from "fs/promises";
-import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
-import path from "path";
+import { supabaseAdmin } from "@/lib/supabase";
 import crypto from "crypto";
+import path from "path";
 
-// Directory for file uploads
-const uploadsDir = join(process.cwd(), "uploads");
-
-// Ensure uploads directory exists
-if (!existsSync(uploadsDir)) {
-  mkdirSync(uploadsDir, { recursive: true });
-}
+// Bucket name for file uploads
+const STORAGE_BUCKET = "file-uploads";
 
 export async function POST(request: Request) {
   try {
@@ -54,20 +47,36 @@ export async function POST(request: Request) {
     const uniqueId = crypto.randomBytes(8).toString('hex');
     const uniqueFileName = `${baseFileName}-${uniqueId}${fileExtension}`;
     
-    // Define file paths
-    const relativePath = join("uploads", uniqueFileName);
-    const absolutePath = join(process.cwd(), relativePath);
+    // Initialize Supabase client
+    const supabase = supabaseAdmin();
     
-    // Convert the file to an ArrayBuffer and then to Buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Set storage path with user ID as a folder to organize uploads by user
+    const storagePath = `${session.user.id}/${uniqueFileName}`;
     
-    // Write the file to disk
-    await writeFile(absolutePath, buffer);
+    // Upload the file to Supabase Storage
+    const { data: storageData, error: storageError } = await supabase
+      .storage
+      .from(STORAGE_BUCKET)
+      .upload(storagePath, file, {
+        contentType: fileType,
+        cacheControl: '3600'
+      });
+      
+    if (storageError) {
+      console.error("Supabase storage error:", storageError);
+      return NextResponse.json(
+        { success: false, message: `Failed to upload file: ${storageError.message}` },
+        { status: 500 }
+      );
+    }
     
-    // Create the file URL based on host
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const fileUrl = `${baseUrl}/${relativePath.replace(/\\/g, '/')}`;
+    // Get the public URL for the uploaded file
+    const { data: publicUrlData } = await supabase
+      .storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(storagePath);
+      
+    const fileUrl = publicUrlData.publicUrl;
     
     // If Google Drive integration is requested and available
     let googleDriveId = null;
@@ -79,14 +88,13 @@ export async function POST(request: Request) {
       // 2. Initialize the Google Drive API client
       // 3. Upload the file to Google Drive
       // 4. Get the file ID and create a shareable link
-      // 5. Optionally delete the local file after successful upload
       
       // For now, we'll simulate a Google Drive upload with a fake ID
       googleDriveId = `gdrive-${uniqueId}`;
       finalFileUrl = `https://drive.google.com/file/d/${googleDriveId}/view`;
     }
     
-    // Save file metadata to database
+    // Save file metadata to database with Supabase storage info
     const fileUpload = await db.fileUpload.create({
       data: {
         name: fileName,
@@ -96,6 +104,9 @@ export async function POST(request: Request) {
         googleDriveId: googleDriveId,
         uploaderId: session.user.id,
         projectId: projectId,
+        // Add Supabase storage metadata
+        storagePath: useGoogleDrive ? null : storagePath,
+        storageBucket: useGoogleDrive ? null : STORAGE_BUCKET,
       },
       include: {
         project: {

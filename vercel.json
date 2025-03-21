@@ -7,5 +7,18 @@
   "framework": "nextjs",
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
+  ],
+  "env": {
+    "NEXTAUTH_URL": {
+      "development": "http://localhost:3000",
+      "preview": "https://vh-dashboard-preview.vercel.app",
+      "production": "https://vh-dashboard.vercel.app"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 0 * * *"
+    }
   ]
 }

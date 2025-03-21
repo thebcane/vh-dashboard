@@ -16,7 +16,8 @@ A comprehensive dashboard for managing video game audio production projects. Bui
 - **Frontend**: Next.js with React 19+
 - **UI**: Tailwind CSS with shadcn/ui components
 - **Authentication**: NextAuth.js
-- **Database**: Prisma ORM with SQLite (can be switched to PostgreSQL)
+- **Database**: Prisma ORM with PostgreSQL on Supabase
+- **Storage**: Supabase Storage for file uploads
 - **State Management**: React Context API and Zustand
 
 ## Getting Started
@@ -101,6 +102,122 @@ The application can be deployed to Vercel:
 ```bash
 npm run build
 ```
+
+## Setting Up Supabase Database and Storage
+
+This project uses Supabase for both PostgreSQL database and file storage. Follow these steps to set up your Supabase project:
+
+### 1. Create a Supabase Project
+
+1. Sign up or log in to [Supabase](https://supabase.com)
+2. Create a new project from your Supabase dashboard
+3. Choose a name and password for your database
+4. Wait for your database to be provisioned
+
+### 2. Set Up Environment Variables
+
+Once your project is created, you'll need to add the Supabase connection details to your `.env` file:
+
+```
+# PostgreSQL Connection Strings (Supabase)
+POSTGRES_URL="postgres://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
+POSTGRES_PRISMA_URL="postgres://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?pgbouncer=true&connection_limit=10"
+POSTGRES_URL_NON_POOLING="postgres://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
+
+# PostgreSQL Connection Details
+POSTGRES_USER="postgres"
+POSTGRES_HOST="db.[YOUR-PROJECT-REF].supabase.co"
+POSTGRES_PASSWORD="[YOUR-PASSWORD]"
+POSTGRES_DATABASE="postgres"
+
+# Supabase API Keys
+SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
+SUPABASE_ANON_KEY="[YOUR-ANON-KEY]"
+SUPABASE_SERVICE_ROLE_KEY="[YOUR-SERVICE-ROLE-KEY]"
+
+# Public env vars for client-side usage
+NEXT_PUBLIC_SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="[YOUR-ANON-KEY]"
+```
+
+You can find these values in your Supabase project:
+- Project URL and API keys: Go to Project Settings > API
+- Database connection info: Go to Project Settings > Database
+
+### 3. Set Up Storage Buckets
+
+Run the provided script to set up the required storage buckets:
+
+```bash
+# Install dotenv if not already installed
+npm install dotenv --save-dev
+
+# Run the storage setup script
+npx ts-node -P ./tsconfig.scripts.json ./scripts/setup-supabase-storage.ts
+```
+
+This script creates a `file-uploads` bucket in your Supabase project with the appropriate permissions.
+
+### 4. Configure File Upload Permissions
+
+In the Supabase dashboard:
+
+1. Go to Storage > Buckets
+2. Select the `file-uploads` bucket
+3. Go to the "Policies" tab
+4. Add a policy to allow authenticated users to upload files:
+   - Name: "Allow authenticated uploads"
+   - Policy definition: `(auth.role() = 'authenticated')`
+   - Operations: `INSERT, SELECT`
+5. Add another policy for public file viewing if needed
+
+### 5. Migrate Your Database
+
+To migrate your schema to the new PostgreSQL database:
+
+```bash
+# Generate Prisma client with the updated schema
+npx prisma generate
+
+# Push the schema to Supabase (for development)
+npx prisma db push
+
+# Or use migrations for a production environment
+npx prisma migrate deploy
+```
+
+### 5. Migrate Your Data (Optional)
+
+If you have existing data in your SQLite database that you want to migrate to PostgreSQL:
+
+```bash
+# Test your PostgreSQL connection first
+npm run db:test-postgres
+
+# If the connection is successful, run the migration script
+npm run db:migrate-to-postgres
+```
+
+### 6. Seed Your Database (Optional)
+
+If you need to seed your database with initial data:
+
+```bash
+npx prisma db seed
+```
+
+### 7. Verify Database and Storage Connection
+
+You can verify your connections by:
+
+1. Running the database test script:
+   ```bash
+   npm run db:test-postgres
+   ```
+
+2. Visiting the `/api/db-status` endpoint after deployment.
+
+3. Test file uploads through the application UI to verify Supabase storage is working properly.
 
 ## License
 

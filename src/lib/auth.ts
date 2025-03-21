@@ -1,13 +1,15 @@
 import NextAuth from "next-auth";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { db } from "@/lib/db";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-// Ultra-simplified configuration for demo with only hardcoded admin credentials
 export const {
   handlers: { GET, POST },
   auth,
   signIn,
-  signOut
+  signOut,
 } = NextAuth({
+  adapter: PrismaAdapter(db),
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -20,8 +22,9 @@ export const {
           console.log("Missing credentials");
           return null;
         }
-
-        // Only allow the hardcoded admin login for now
+        
+        // In a real application, you would authenticate against the database
+        // For now, we'll keep the hardcoded admin login for simplicity
         if (credentials.email === "admin@visualharmonics.com" &&
             credentials.password === "password123") {
           console.log("Admin login successful");
@@ -32,7 +35,7 @@ export const {
             role: "admin",
           };
         }
-        
+
         console.log("Invalid credentials");
         return null;
       },
@@ -55,11 +58,16 @@ export const {
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.role = user.role;
+        token.sub = user.id;
       }
-      return token;
+      // Persist the OAuth access_token to the token right after signin
+      if (account) {
+        token.accessToken = account.access_token
+      }
+      return token
     },
   },
   debug: true, // Enable debug mode for development

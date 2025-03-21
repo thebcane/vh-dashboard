@@ -9,8 +9,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
 // Visual Harmonics Dashboard Models
@@ -123,6 +124,9 @@ model FileUpload {
   googleDriveId  String?
   uploaderId     String
   projectId      String?
+  // Supabase Storage fields
+  storagePath    String?      // path in the Supabase storage bucket
+  storageBucket  String?      // name of the Supabase storage bucket
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   
