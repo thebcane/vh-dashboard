@@ -124,7 +124,7 @@ export default function SettingsPage() {
                     <Input
                       id="name"
                       name="name"
-                      value={formData.name}
+                      value={formData.name ?? ''}
                       onChange={handleInputChange}
                       required
                     />
@@ -135,7 +135,7 @@ export default function SettingsPage() {
                       id="email"
                       name="email"
                       type="email"
-                      value={formData.email}
+                      value={formData.email ?? ''}
                       onChange={handleInputChange}
                       required
                     />
