@@ -8,15 +8,16 @@ export async function GET(
 ) {
   try {
     // Get the current user session
-    const { session } = await getSession();
+    const sessionData = await getSession();
     
-    if (!session?.user) {
+    if (!sessionData?.session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const session = sessionData.session;
     const expenseId = params.id;
 
     // Get the expense
@@ -60,15 +61,16 @@ export async function PATCH(
 ) {
   try {
     // Get the current user session
-    const { session } = await getSession();
+    const sessionData = await getSession();
     
-    if (!session?.user) {
+    if (!sessionData?.session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const session = sessionData.session;
     const expenseId = params.id;
     const data = await request.json();
 
@@ -137,15 +139,16 @@ export async function DELETE(
 ) {
   try {
     // Get the current user session
-    const { session } = await getSession();
+    const sessionData = await getSession();
     
-    if (!session?.user) {
+    if (!sessionData?.session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const session = sessionData.session;
     const expenseId = params.id;
 
     // Check if the expense exists

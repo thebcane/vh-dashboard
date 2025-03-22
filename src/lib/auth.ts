@@ -13,45 +13,84 @@ const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 // Sign Up
 async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
+  if (typeof window === 'undefined') {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-  if (error) {
-    throw error;
+      if (error) {
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error("Server-side sign up error:", error);
+      throw error;
+    }
+  } else {
+    console.warn("signUp function should only be called server-side");
+    return null;
   }
-  return data;
 }
 
 // Sign In
 async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  if (typeof window === 'undefined') {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-  if (error) {
-    throw error;
+      if (error) {
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error("Server-side sign in error:", error);
+      throw error;
+    }
+  } else {
+    console.warn("signIn function should only be called server-side");
+    return null;
   }
-  return data;
 }
 
 // Sign Out
 async function signOutUser() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    throw error;
+  if (typeof window === 'undefined') {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error("Server-side sign out error:", error);
+      throw error;
+    }
+  } else {
+    console.warn("signOutUser function should only be called server-side");
   }
 }
 
 // Get Session
 async function getSession() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    throw error;
+  if (typeof window === 'undefined') {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error("Server-side getSession error:", error);
+      throw error;
+    }
+  } else {
+    console.warn("getSession function should only be called server-side");
+    return null;
   }
-  return data;
 }
 
 export { signUp, signIn, signOutUser, getSession, supabase };

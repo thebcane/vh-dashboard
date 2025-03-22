@@ -5,14 +5,16 @@ import { cachedExpenseRepository } from "@/lib/repositories";
 export async function GET() {
   try {
     // Get the current user session
-    const { session } = await getSession();
+    const sessionData = await getSession();
 
-    if (!session?.user) {
+    if (!sessionData?.session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const session = sessionData.session;
 
     // Get all expenses for the user with associated projects
     const expenses = await cachedExpenseRepository.findWithProjectByUserId(session.user.id);
@@ -33,14 +35,16 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     // Get the current user session
-    const { session } = await getSession();
+    const sessionData = await getSession();
 
-    if (!session?.user) {
+    if (!sessionData?.session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const session = sessionData.session;
 
     // Get expense data from request body
     const data = await request.json();
