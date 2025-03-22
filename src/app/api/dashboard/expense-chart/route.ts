@@ -29,38 +29,22 @@ export async function GET(request: NextRequest) {
     sixMonthsAgo.setDate(1); // Start from the first day of that month
     sixMonthsAgo.setHours(0, 0, 0, 0);
     
-    const expenses = await db.expense.findMany({
-      where: {
-        OR: [
-          {
-            userId: userId,
-            date: { gte: sixMonthsAgo }
-          },
-          {
-            project: {
-              OR: [
-                { ownerId: userId },
-                {
-                  members: {
-                    some: {
-                      userId: userId,
-                    },
-                  },
-                },
-              ],
-            },
-            date: { gte: sixMonthsAgo },
-          },
-        ],
-      },
-      select: {
-        amount: true,
-        date: true,
-      },
-      orderBy: {
-        date: 'asc',
-      },
-    });
+    interface ExpenseData {
+      amount: number;
+      date: Date;
+    }
+
+    const expensesResult = await db.query(`
+      SELECT amount, date FROM public."Expense"
+      WHERE (("userId" = $1 AND date >= $2) OR
+            ("projectId" IN (SELECT id FROM public."Project"
+                            WHERE "ownerId" = $1 OR "id" IN
+                            (SELECT "projectId" FROM public."ProjectMember" WHERE "userId" = $1))
+             AND date >= $2))
+      ORDER BY date ASC;
+    `, [userId, sixMonthsAgo]);
+    
+    const expenses: ExpenseData[] = expensesResult.rows;
     
     // Group expenses by month
     const months: string[] = [];

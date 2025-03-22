@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { expenseRepository } from "@/lib/repositories";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,37 +22,22 @@ export async function GET(request: NextRequest) {
     // Use session.user.id if available, otherwise use a default admin ID
     const userId = session?.user?.id || 'admin-id';
 
-    // Get all expenses for the user
-    const expenses = await db.expense.findMany({
-      where: {
-        userId: userId,
-      },
-      select: {
-        amount: true,
-        category: true,
-      },
-    });
-
+    // Get expense summary by category
+    const categorySummary = await expenseRepository.getSummaryByCategory(userId);
+    
     // Calculate the total amount
-    const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const total = categorySummary.reduce((sum, item) => sum + item.total, 0);
 
-    // Group by category and sum the amounts
-    const categoryMap = new Map<string, number>();
-    
-    for (const expense of expenses) {
-      const currentAmount = categoryMap.get(expense.category) || 0;
-      categoryMap.set(expense.category, currentAmount + expense.amount);
-    }
-    
-    const categorySummary = Array.from(categoryMap.entries()).map(([category, amount]) => ({
-      category,
-      amount,
+    // Format the response to match the expected structure
+    const formattedSummary = categorySummary.map(item => ({
+      category: item.category,
+      amount: item.total,
     }));
 
     return NextResponse.json({
       success: true,
       total,
-      categorySummary,
+      categorySummary: formattedSummary,
     });
   } catch (error) {
     console.error("Error fetching expense summary:", error);

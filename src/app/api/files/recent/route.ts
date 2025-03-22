@@ -23,42 +23,35 @@ export async function GET(request: NextRequest) {
     const userId = session?.user?.id || 'admin-id';
 
     // Get recent files for the user with associated projects
-    const files = await db.fileUpload.findMany({
-      where: {
-        OR: [
-          {
-            uploaderId: userId,
-          },
-          {
-            project: {
-              OR: [
-                { ownerId: userId },
-                {
-                  members: {
-                    some: {
-                      userId: userId,
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      take: 5, // Limit to 5 most recent files
-    });
+    interface FileWithProject {
+      id: string;
+      name: string;
+      url: string;
+      key: string;
+      projectId: string | null;
+      uploaderId: string;
+      createdAt: Date;
+      updatedAt: Date;
+      project: {
+        id: string;
+        name: string;
+        status: string;
+      } | null;
+      googleDriveId?: string; // Make optional
+      syncStatus?: string;    // Make optional
+      mimeType?: string;      // Make optional
+    }
+
+    const filesResult = await db.query(`
+      SELECT f.*, json_build_object('id', p.id, 'name', p.name, 'status', p.status) as project
+      FROM public."FileUpload" f
+      LEFT JOIN public."Project" p ON f."projectId" = p.id
+      WHERE (f."uploaderId" = $1) OR (f."projectId" IN (SELECT id FROM public."Project" WHERE "ownerId" = $1 OR "id" IN (SELECT "projectId" FROM public."ProjectMember" WHERE "userId" = $1)))
+      ORDER BY f."updatedAt" DESC
+      LIMIT 5;
+    `, [userId]);
+
+    const files: FileWithProject[] = filesResult.rows;
 
     return NextResponse.json({
       success: true,

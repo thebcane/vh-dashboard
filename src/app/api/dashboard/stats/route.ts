@@ -23,102 +23,51 @@ export async function GET(request: NextRequest) {
     const userId = session?.user?.id || 'admin-id';
 
     // Get dashboard statistics
-    
+
     // 1. Active Projects Count
-    const activeProjects = await db.project.count({
-      where: {
-        OR: [
-          {
-            ownerId: userId,
-            status: "active",
-          },
-          {
-            members: {
-              some: {
-                userId: userId,
-              },
-            },
-            status: "active",
-          },
-        ],
-      },
-    });
+    const activeProjectsResult = await db.query(`
+      SELECT COUNT(*) FROM public."Project"
+      WHERE ("ownerId" = $1 AND "status" = 'active')
+      OR ("id" IN (SELECT "projectId" FROM public."ProjectMember" WHERE "userId" = $1)
+      AND "status" = 'active');
+    `, [userId]);
+    const activeProjects = parseInt(activeProjectsResult.rows[0].count, 10);
 
     // 2. Pending Tasks Count
-    const pendingTasks = await db.task.count({
-      where: {
-        OR: [
-          {
-            assigneeId: userId,
-            status: { in: ["todo", "inProgress"] },
-          },
-          {
-            project: {
-              ownerId: userId,
-            },
-            status: { in: ["todo", "inProgress"] },
-          },
-        ],
-      },
-    });
+    const pendingTasksResult = await db.query(`
+      SELECT COUNT(*) FROM public."Task"
+      WHERE ("assigneeId" = $1 AND "status" IN ('todo', 'inProgress'))
+      OR ("projectId" IN (SELECT id FROM public."Project" WHERE "ownerId" = $1)
+      AND "status" IN ('todo', 'inProgress'));
+    `, [userId]);
+    const pendingTasks = parseInt(pendingTasksResult.rows[0].count, 10);
 
     // 3. Recent Files Count (last 7 days)
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     
-    const recentFiles = await db.fileUpload.count({
-      where: {
-        OR: [
-          {
-            uploaderId: userId,
-            createdAt: { gte: oneWeekAgo },
-          },
-          {
-            project: {
-              OR: [
-                { ownerId: userId },
-                {
-                  members: {
-                    some: {
-                      userId: userId,
-                    },
-                  },
-                },
-              ],
-            },
-            createdAt: { gte: oneWeekAgo },
-          },
-        ],
-      },
-    });
+    const recentFilesResult = await db.query(`
+      SELECT COUNT(*) FROM public."FileUpload"
+      WHERE ("uploaderId" = $1 AND "createdAt" >= $2)
+      OR ("projectId" IN (SELECT id FROM public."Project"
+                          WHERE "ownerId" = $1 OR "id" IN (SELECT "projectId" FROM public."ProjectMember" WHERE "userId" = $1))
+      AND "createdAt" >= $2);
+    `, [userId, oneWeekAgo]);
+    const recentFiles = parseInt(recentFilesResult.rows[0].count, 10);
 
     // 4. Total Expenses
-    const expenses = await db.expense.findMany({
-      where: {
-        OR: [
-          { userId: userId },
-          {
-            project: {
-              OR: [
-                { ownerId: userId },
-                {
-                  members: {
-                    some: {
-                      userId: userId,
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-      select: {
-        amount: true,
-      },
-    });
-    
-    const totalExpenses = expenses.reduce((total, expense) => total + expense.amount, 0);
+    interface Expense {
+      amount: number;
+    }
+    const expensesResult = await db.query(`
+      SELECT amount FROM public."Expense"
+      WHERE ("userId" = $1)
+      OR ("projectId" IN (SELECT id FROM public."Project"
+                          WHERE "ownerId" = $1 OR "id" IN (SELECT "projectId" FROM public."ProjectMember" WHERE "userId" = $1)));
+    `, [userId]);
+    const expenses: Expense[] = expensesResult.rows;
+
+    const totalExpenses = expenses.reduce((total: number, expense: Expense) => total + expense.amount, 0);
 
     return NextResponse.json({
       success: true,

@@ -182,16 +182,19 @@ export async function GET(request: NextRequest) {
     expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
     
     // Store the tokens in the user record
-    await db.user.update({
-      where: {
-        id: session.user.id
-      },
-      data: {
-        googleDriveAccessToken: tokenData.access_token,
-        googleDriveRefreshToken: tokenData.refresh_token,
-        googleDriveTokenExpiry: expiryDate
-      },
-    });
+    await db.query(`
+      UPDATE public."User"
+      SET
+        "googleDriveAccessToken" = $1,
+        "googleDriveRefreshToken" = $2,
+        "googleDriveTokenExpiry" = $3
+      WHERE id = $4;
+    `, [
+      tokenData.access_token,
+      tokenData.refresh_token,
+      expiryDate,
+      session.user.id
+    ]);
     
     // Create a successful response to close the window
     return new Response(`

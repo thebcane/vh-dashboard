@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { expenseRepository } from "@/lib/repositories";
+import { Expense, ExpenseWithProject } from "@/lib/repositories/expense-repository";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,29 +23,17 @@ export async function GET(request: NextRequest) {
     // Use session.user.id if available, otherwise use a default admin ID
     const userId = session?.user?.id || 'admin-id';
 
-    // Get recent expenses for the user with associated projects
-    const expenses = await db.expense.findMany({
-      where: {
-        userId: userId,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        date: 'desc',
-      },
-      take: 5, // Limit to 5 most recent expenses
-    });
+    // Get recent expenses with project information
+    const expenses = await expenseRepository.findWithProjectByUserId(userId);
+    
+    // Sort by date and limit to 5
+    const recentExpenses = expenses
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
 
     return NextResponse.json({
       success: true,
-      expenses,
+      expenses: recentExpenses,
     });
   } catch (error) {
     console.error("Error fetching recent expenses:", error);

@@ -23,24 +23,31 @@ export async function GET(request: NextRequest) {
     const userId = session?.user?.id || 'admin-id';
 
     // Get recent notes for the user with associated projects
-    const notes = await db.note.findMany({
-      where: {
-        authorId: userId,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      take: 5, // Limit to 5 most recent notes
-    });
+    interface NoteWithProject {
+      id: string;
+      title: string;
+      content: string;
+      projectId: string | null;
+      authorId: string;
+      createdAt: Date;
+      updatedAt: Date;
+      project: {
+        id: string;
+        name: string;
+        status: string;
+      } | null;
+    }
+
+    const notesResult = await db.query(`
+      SELECT n.*, json_build_object('id', p.id, 'name', p.name, 'status', p.status) as project
+      FROM public."Note" n
+      LEFT JOIN public."Project" p ON n."projectId" = p.id
+      WHERE n."authorId" = $1
+      ORDER BY n."updatedAt" DESC
+      LIMIT 5;
+    `, [userId]);
+
+    const notes: NoteWithProject[] = notesResult.rows;
 
     return NextResponse.json({
       success: true,

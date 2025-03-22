@@ -17,12 +17,12 @@ export async function GET() {
     }
 
     // Normal runtime DB check
-    const result = await db.$queryRaw`SELECT 1 as connected`;
+    const result = await db.query('SELECT 1 as connected');
     
     return NextResponse.json({
       status: "connected",
       message: "Successfully connected to the database",
-      details: result,
+      details: result.rows,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

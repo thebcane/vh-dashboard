@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+// Define the FileUpload interface
+interface FileUpload {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  googleDriveId: string;
+  uploaderId: string;
+  projectId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export async function POST() {
   try {
     // Get the current user session
@@ -15,18 +29,12 @@ export async function POST() {
     }
 
     // Get existing files with Google Drive IDs to avoid duplicates
-    const existingFiles = await db.fileUpload.findMany({
-      where: {
-        uploaderId: session.user.id,
-        googleDriveId: {
-          not: null
-        }
-      },
-      select: {
-        googleDriveId: true
-      }
-    });
+    const existingFilesResult = await db.query(`
+      SELECT "googleDriveId" FROM public."FileUpload"
+      WHERE "uploaderId" = $1 AND "googleDriveId" IS NOT NULL;
+    `, [session.user.id]);
     
+    const existingFiles = existingFilesResult.rows;
     const existingGoogleDriveIds = new Set(existingFiles.map(file => file.googleDriveId));
     
     // Create sample files to simulate successful Google Drive API calls
@@ -60,17 +68,20 @@ export async function POST() {
       
       for (const sampleFile of sampleFiles) {
         if (!existingGoogleDriveIds.has(sampleFile.googleDriveId)) {
-          const file = await db.fileUpload.create({
-            data: {
-              name: sampleFile.name,
-              type: sampleFile.type,
-              size: sampleFile.size,
-              url: sampleFile.url,
-              googleDriveId: sampleFile.googleDriveId,
-              uploaderId: session.user.id
-            }
-          });
+          const fileResult = await db.query(`
+            INSERT INTO public."FileUpload" ("name", "type", "size", "url", "googleDriveId", "uploaderId")
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *;
+          `, [
+            sampleFile.name,
+            sampleFile.type,
+            sampleFile.size,
+            sampleFile.url,
+            sampleFile.googleDriveId,
+            session.user.id
+          ]);
           
+          const file: FileUpload = fileResult.rows[0];
           files.push(file);
         }
       }

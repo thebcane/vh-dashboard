@@ -8,6 +8,27 @@ import path from "path";
 // Bucket name for file uploads
 const STORAGE_BUCKET = "file-uploads";
 
+// Define the File interface with project information
+interface FileWithProject {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  googleDriveId: string | null;
+  uploaderId: string;
+  projectId: string | null;
+  storagePath: string | null;
+  storageBucket: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  project: {
+    id: string;
+    name: string;
+    status: string;
+  } | null;
+}
+
 export async function POST(request: Request) {
   try {
     // Get the current user session
@@ -94,33 +115,36 @@ export async function POST(request: Request) {
       finalFileUrl = `https://drive.google.com/file/d/${googleDriveId}/view`;
     }
     
+    // Prepare storage metadata
+    const finalStoragePath = useGoogleDrive ? null : storagePath;
+    const finalStorageBucket = useGoogleDrive ? null : STORAGE_BUCKET;
+    
     // Save file metadata to database with Supabase storage info
-    const fileUpload = await db.fileUpload.create({
-      data: {
-        name: fileName,
-        type: fileType,
-        size: fileSize,
-        url: finalFileUrl,
-        googleDriveId: googleDriveId,
-        uploaderId: session.user.id,
-        projectId: projectId || undefined,
-        
-        // Add Supabase storage metadata - TypeScript safe way
-        ...(useGoogleDrive ? {} : {
-          storagePath: storagePath,
-          storageBucket: STORAGE_BUCKET
-        }),
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
-      },
-    });
+    const fileUploadResult = await db.query(`
+      WITH inserted_file AS (
+        INSERT INTO public."FileUpload" (
+          "name", "type", "size", "url", "googleDriveId", "uploaderId", "projectId",
+          "storagePath", "storageBucket"
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *
+      )
+      SELECT f.*, json_build_object('id', p.id, 'name', p.name, 'status', p.status) as project
+      FROM inserted_file f
+      LEFT JOIN public."Project" p ON f."projectId" = p.id;
+    `, [
+      fileName,
+      fileType,
+      fileSize,
+      finalFileUrl,
+      googleDriveId,
+      session.user.id,
+      projectId,
+      finalStoragePath,
+      finalStorageBucket
+    ]);
+    
+    const fileUpload: FileWithProject = fileUploadResult.rows[0];
     
     return NextResponse.json({
       success: true,

@@ -8,6 +8,9 @@ import { AuthProvider } from "@/context/auth-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
+const isVercelBuild = process.env.NEXT_PHASE === 'phase-production-build' ||
+                      process.env.NEXT_SKIP_INITIALIZING_DB === 'true';
+
 export const metadata: Metadata = {
   title: "Visual Harmonics Dashboard",
   description: "Dashboard for Visual Harmonics audio production company",

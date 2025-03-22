@@ -1,88 +1,57 @@
-import NextAuth from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { db } from "@/lib/db";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { JWT } from "next-auth/jwt";
-import { Session } from "next-auth";
-import { AuthOptions } from "next-auth";
+import { createClient } from '@supabase/supabase-js';
+import { AuthError, type Provider, type SupabaseClient } from '@supabase/supabase-js';
 
-// Check if we're in a build environment
-const isVercelBuild = process.env.NEXT_PHASE === 'phase-production-build' ||
-                      process.env.NEXT_SKIP_INITIALIZING_DB === 'true';
+// Initialize Supabase client (consider moving these to environment variables)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Define the auth configuration
-export const authConfig: AuthOptions = {
-  // Only use the adapter in non-build environments
-  ...(isVercelBuild ? {} : { adapter: PrismaAdapter(db) }),
-  providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          console.log("Missing credentials");
-          return null;
-        }
-        
-        // In a real application, you would authenticate against the database
-        // For now, we'll keep the hardcoded admin login for simplicity
-        if (credentials.email === "admin@visualharmonics.com" &&
-            credentials.password === "password123") {
-          console.log("Admin login successful");
-          return {
-            id: "admin-id",
-            name: "Admin User",
-            email: "admin@visualharmonics.com",
-            role: "admin",
-          };
-        }
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and Anon Key must be provided');
+}
 
-        console.log("Invalid credentials");
-        return null;
-      },
-    }),
-  ],
-  session: {
-    strategy: "jwt" as const,
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  pages: {
-    signIn: "/login",
-  },
-  callbacks: {
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (token.sub && session.user) {
-        session.user.id = token.sub;
-      }
-      if (token.role && session.user) {
-        session.user.role = token.role as string;
-      }
-      return session;
-    },
-    async jwt({ token, user, account }: { token: JWT; user: any; account: any }) {
-      if (user) {
-        token.role = user.role;
-        token.sub = user.id;
-      }
-      // Persist the OAuth access_token to the token right after signin
-      if (account) {
-        token.accessToken = account.access_token;
-      }
-      return token;
-    },
-  },
-  debug: process.env.NODE_ENV === "development",
-};
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
-// Create the NextAuth handler
-const handler = NextAuth(authConfig);
+// Sign Up
+async function signUp(email: string, password: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-// Export the handler functions
-export const { auth, signIn, signOut } = handler;
+  if (error) {
+    throw error;
+  }
+  return data;
+}
 
-// Export GET and POST handlers for the API route
-export const GET = handler.GET;
-export const POST = handler.POST;
+// Sign In
+async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+// Sign Out
+async function signOutUser() {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    throw error;
+  }
+}
+
+// Get Session
+async function getSession() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    throw error;
+  }
+  return data;
+}
+
+export { signUp, signIn, signOutUser, getSession, supabase };

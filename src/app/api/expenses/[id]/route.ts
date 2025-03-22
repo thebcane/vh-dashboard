@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { expenseRepository, ExpenseWithProject } from "@/lib/repositories/expense-repository";
 
 export async function GET(
   request: Request,
@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     // Get the current user session
-    const session = await auth();
+    const { session } = await getSession();
     
     if (!session?.user) {
       return NextResponse.json(
@@ -19,21 +19,8 @@ export async function GET(
 
     const expenseId = params.id;
 
-    // Get the expense with the associated project
-    const expense = await db.expense.findUnique({
-      where: {
-        id: expenseId,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
-      },
-    });
+    // Get the expense
+    const expense = await expenseRepository.findById(expenseId);
 
     if (!expense) {
       return NextResponse.json(
@@ -50,9 +37,13 @@ export async function GET(
       );
     }
 
+    // Get the expense with project information
+    const expensesWithProject = await expenseRepository.findWithProjectByUserId(session.user.id);
+    const expenseWithProject = expensesWithProject.find(e => e.id === expenseId);
+
     return NextResponse.json({
       success: true,
-      expense,
+      expense: expenseWithProject || { ...expense, project: null },
     });
   } catch (error) {
     console.error("Error fetching expense:", error);
@@ -69,7 +60,7 @@ export async function PATCH(
 ) {
   try {
     // Get the current user session
-    const session = await auth();
+    const { session } = await getSession();
     
     if (!session?.user) {
       return NextResponse.json(
@@ -81,12 +72,8 @@ export async function PATCH(
     const expenseId = params.id;
     const data = await request.json();
 
-    // Check if the expense exists and belongs to the user
-    const existingExpense = await db.expense.findUnique({
-      where: {
-        id: expenseId,
-      },
-    });
+    // Check if the expense exists
+    const existingExpense = await expenseRepository.findById(expenseId);
 
     if (!existingExpense) {
       return NextResponse.json(
@@ -95,6 +82,7 @@ export async function PATCH(
       );
     }
 
+    // Check if the expense belongs to the current user
     if (existingExpense.userId !== session.user.id) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -102,35 +90,37 @@ export async function PATCH(
       );
     }
 
+    // Prepare update values
+    const updateData: any = {};
+    
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.amount !== undefined) updateData.amount = data.amount;
+    if (data.date !== undefined) updateData.date = new Date(data.date).toISOString();
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;
+    if (data.paid !== undefined) updateData.paid = data.paid;
+    if (data.projectId !== undefined) updateData.projectId = data.projectId;
+
     // Update the expense
-    const updatedExpense = await db.expense.update({
-      where: {
-        id: expenseId,
-      },
-      data: {
-        title: data.title !== undefined ? data.title : undefined,
-        description: data.description !== undefined ? data.description : undefined,
-        amount: data.amount !== undefined ? data.amount : undefined,
-        date: data.date !== undefined ? new Date(data.date) : undefined,
-        category: data.category !== undefined ? data.category : undefined,
-        invoiceNumber: data.invoiceNumber !== undefined ? data.invoiceNumber : undefined,
-        paid: data.paid !== undefined ? data.paid : undefined,
-        projectId: data.projectId !== undefined ? data.projectId : undefined,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
-      },
-    });
+    const updatedExpense = await expenseRepository.update(expenseId, updateData);
+
+    // Get the updated expense with project information
+    let expenseWithProject: ExpenseWithProject | null = null;
+    
+    if (updatedExpense.projectId) {
+      const expensesWithProject = await expenseRepository.findWithProjectByUserId(session.user.id);
+      expenseWithProject = expensesWithProject.find(e => e.id === expenseId) || null;
+    } else {
+      expenseWithProject = {
+        ...updatedExpense,
+        project: null
+      };
+    }
 
     return NextResponse.json({
       success: true,
-      expense: updatedExpense,
+      expense: expenseWithProject || updatedExpense,
     });
   } catch (error) {
     console.error("Error updating expense:", error);
@@ -147,7 +137,7 @@ export async function DELETE(
 ) {
   try {
     // Get the current user session
-    const session = await auth();
+    const { session } = await getSession();
     
     if (!session?.user) {
       return NextResponse.json(
@@ -158,12 +148,8 @@ export async function DELETE(
 
     const expenseId = params.id;
 
-    // Check if the expense exists and belongs to the user
-    const existingExpense = await db.expense.findUnique({
-      where: {
-        id: expenseId,
-      },
-    });
+    // Check if the expense exists
+    const existingExpense = await expenseRepository.findById(expenseId);
 
     if (!existingExpense) {
       return NextResponse.json(
@@ -172,6 +158,7 @@ export async function DELETE(
       );
     }
 
+    // Check if the expense belongs to the current user
     if (existingExpense.userId !== session.user.id) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -180,11 +167,7 @@ export async function DELETE(
     }
 
     // Delete the expense
-    await db.expense.delete({
-      where: {
-        id: expenseId,
-      },
-    });
+    await expenseRepository.delete(expenseId);
 
     return NextResponse.json({
       success: true,

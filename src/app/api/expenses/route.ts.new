@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSession, supabase } from "@/lib/auth";
-import { cachedExpenseRepository } from "@/lib/repositories";
+import { auth } from "@/lib/auth";
+import { expenseRepository, ExpenseWithProject } from "@/lib/repositories";
 
 export async function GET() {
   try {
     // Get the current user session
-    const { session } = await getSession();
-
+    const session = await auth();
+    
     if (!session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     // Get all expenses for the user with associated projects
-    const expenses = await cachedExpenseRepository.findWithProjectByUserId(session.user.id);
+    const expenses = await expenseRepository.findWithProjectByUserId(session.user.id);
 
     return NextResponse.json({
       success: true,
@@ -33,8 +33,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     // Get the current user session
-    const { session } = await getSession();
-
+    const session = await auth();
+    
     if (!session?.user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const data = await request.json();
     
     // Create the expense
-    const expense = await cachedExpenseRepository.create({
+    const expense = await expenseRepository.create({
       title: data.title,
       description: data.description || "",
       amount: data.amount,
@@ -59,15 +59,15 @@ export async function POST(request: Request) {
     });
 
     // If we need project information, we can fetch it separately
-    let expenseWithProject = null;
+    let expenseWithProject: ExpenseWithProject | null = null;
     
     if (expense.projectId) {
-      const expenses = await cachedExpenseRepository.findWithProjectByUserId(session.user.id);
-      expenseWithProject = expenses.find((e: { id: string }) => e.id === expense.id) || null;
+      const expenses = await expenseRepository.findWithProjectByUserId(session.user.id);
+      expenseWithProject = expenses.find(e => e.id === expense.id) || null;
     } else {
       expenseWithProject = {
         ...expense,
-        project: null,
+        project: null
       };
     }
 
