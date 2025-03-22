@@ -1,12 +1,11 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { Session } from "next-auth";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "@/lib/auth";
+import { signIn, signOutUser, getSession } from "@/lib/auth"; // Corrected import
 
 type AuthContextType = {
-  session: Session | null;
+  session: any | null; //Using any to avoid defining the full session object
   status: "loading" | "authenticated" | "unauthenticated";
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<boolean>;
@@ -23,20 +22,20 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({
   children,
-  initialSession
+  initialSession,
 }: {
-  children: React.ReactNode,
-  initialSession?: Session | null
+  children: React.ReactNode;
+  initialSession?: any | null;
 }) => {
-  const [session, setSession] = useState<Session | null>(initialSession || null);
+  const [session, setSession] = useState<any | null>(initialSession || null);
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">(
     initialSession ? "authenticated" : "loading"
   );
   const [isAdmin, setIsAdmin] = useState(initialSession?.user?.role === "admin");
-  
+
   const router = useRouter();
   const pathname = usePathname();
-  
+
   useEffect(() => {
     if (initialSession) {
       setSession(initialSession);
@@ -44,22 +43,20 @@ export const AuthProvider = ({
       setIsAdmin(initialSession.user?.role === "admin");
       return;
     }
-    
+
     const checkSession = async () => {
       try {
-        // Simple fetch to check auth status
-        const res = await fetch('/api/auth/session');
-        const data = await res.json();
-        
-        if (data && data.user) {
-          setSession(data);
+        const data = await getSession();
+
+        if (data && data.session) {
+          setSession(data.session); //Correctly getting the nested session.
           setStatus("authenticated");
-          setIsAdmin(data.user.role === "admin");
+          setIsAdmin(data.session.user?.role === "admin"); //Access user role
         } else {
           setSession(null);
           setStatus("unauthenticated");
           setIsAdmin(false);
-          
+
           // Redirect to login if on protected routes
           if (pathname.startsWith('/dashboard')) {
             router.push('/login');
@@ -70,48 +67,45 @@ export const AuthProvider = ({
         setStatus("unauthenticated");
       }
     };
-    
+
     checkSession();
   }, [pathname, router, initialSession]);
 
-  // Login and logout functions
   const login = async (email: string, password: string) => {
     try {
-      const result = await nextAuthSignIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-      
-      if (result?.error) {
-        console.error("Login failed:", result.error);
+      const result = await signIn(email, password); // Call signIn
+
+      if (!result) {
+        console.error("Login failed");
         return false;
       }
-      
-      // Update session
-      const res = await fetch('/api/auth/session');
-      const data = await res.json();
-      
-      if (data && data.user) {
-        setSession(data);
-        setStatus("authenticated");
-        setIsAdmin(data.user.role === "admin");
-        return true;
-      }
-      
+        const data = await getSession();
+
+        if (data && data.session) {
+          setSession(data.session);
+          setStatus("authenticated");
+          setIsAdmin(data.session.user?.role === "admin");
+          return true;
+        }
+
       return false;
     } catch (error) {
       console.error("Login error:", error);
       return false;
     }
   };
-  
+
   const logout = async () => {
-    await nextAuthSignOut({ redirect: false });
-    setSession(null);
-    setStatus("unauthenticated");
-    setIsAdmin(false);
-    router.push('/login');
+    try{
+        await signOutUser();
+        setSession(null);
+        setStatus("unauthenticated");
+        setIsAdmin(false);
+        router.push('/login');
+    } catch (error) {
+        console.error("Logout error", error)
+    }
+
   };
 
   return (
